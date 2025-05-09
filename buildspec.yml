@@ -1,0 +1,35 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Installing necessary packages..."
+      - yum install -y aws-cli  # Ensure AWS CLI is available
+      - echo "Fetching PEM key from AWS Parameter Store..."
+      - aws ssm get-parameter --name /my/ec2/pemKey --with-decryption --query 'Parameter.Value' --output text > /tmp/key.pem
+      - chmod 400 /tmp/key.pem  # Set proper permissions for the PEM key
+
+  pre_build:
+    commands:
+      - echo "Starting the build phase..."
+      - pwd
+      - mvn clean package  # Example Maven build command for Java project
+      - echo "Build complete."
+
+  build:
+    commands:
+      - pwd
+      - echo "Copying the WAR file to S3..."
+      - pwd
+      - aws s3 cp webapp/target/webapp.war s3://my-maven-build-artifacts/myapp.war  # Upload WAR to S3
+
+  post_build:
+    commands:
+      - echo "Build successful. Starting deployment..."
+      - chmod +x adeploy.sh  # Ensure the deployment script is executable
+      - ./adeploy.sh         # Run the deploy script to deploy the WAR file to EC2 and restart Tomcat
+
+artifacts:
+  files:
+    - target/*.war  # Uploads the WAR file as an artifact, optional
+
